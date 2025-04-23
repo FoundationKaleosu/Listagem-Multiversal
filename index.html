@@ -248,8 +248,7 @@
 
     const idValue = generateIdForFamily(family);
     families[family][person] = { id: idValue };
-    alert(`${person} adicionado à família ${family}.`);
-
+  
     set(ref(db, "families/" + family), families[family]);
     document.getElementById("personInput").value = "";
   }
