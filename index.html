@@ -21,7 +21,7 @@
       font-size: 2.2rem;
       font-weight: bold;
       letter-spacing: 1px;
-      border-bottom: 4px solid #DAA520; /* Aumentada a espessura para 4px */
+      border-bottom: 4px solid #DAA520;
     }
 
     .form-container {
@@ -79,7 +79,7 @@
       width: 250px;
       padding: 0.5rem;
       border-radius: 8px;
-      border: 3px solid #DAA520; /* Aumentada a espessura para 3px */
+      border: 3px solid #DAA520;
       background-color: #000;
       color: white;
     }
@@ -164,9 +164,8 @@
 
 <div class="form-container">
   <input type="text" id="personInput" placeholder="Nome & Sobrenome">
-  <input type="text" id="idInput" placeholder="ID de Identificação">
-  <button onclick="addFamily()">Adicionar</button>
-  <button onclick="removePersonById()">Remover</button>
+  <button onclick="addPerson()">Adicionar</button>
+  <button onclick="removePerson()">Remover</button>
 </div>
 
 <div class="search-container">
@@ -201,7 +200,7 @@
   const searchMessage = document.getElementById("searchMessage");
   let families = {};
 
-  // Função de renderização das famílias
+  // Função para renderizar famílias
   function renderFamilies() {
     const query = searchInput.value.toLowerCase();
     familyDetails.innerHTML = "";
@@ -238,61 +237,47 @@
   }
 
   // Função para adicionar pessoa
-  function addFamily() {
+  function addPerson() {
     const person = document.getElementById("personInput").value.trim();
-    const idValue = document.getElementById("idInput").value.trim();
-
-    if (!person || !idValue) return alert("Preencha todos os campos!");
+    if (!person) return alert("Preencha o nome da pessoa!");
 
     const parts = person.split(" ");
     const family = parts.length > 1 ? parts[parts.length - 1] : "Desconhecida";
 
     if (!families[family]) families[family] = {};
 
+    const idValue = generateIdForFamily(family);
     families[family][person] = { id: idValue };
+    alert(`${person} adicionado à família ${family}.`);
+
     set(ref(db, "families/" + family), families[family]);
+    document.getElementById("personInput").value = "";
+  }
+
+  // Função para remover pessoa
+  function removePerson() {
+    const person = document.getElementById("personInput").value.trim();
+    if (!person) return alert("Preencha o nome da pessoa!");
+
+    const parts = person.split(" ");
+    const family = parts.length > 1 ? parts[parts.length - 1] : "Desconhecida";
+
+    if (families[family] && families[family][person]) {
+      delete families[family][person];
+      alert(`${person} removido da família ${family}.`);
+      set(ref(db, "families/" + family), families[family]);
+    } else {
+      alert(`${person} não encontrado na família ${family}.`);
+    }
 
     document.getElementById("personInput").value = "";
-    document.getElementById("idInput").value = "";
   }
 
-  // Função para remover pessoa por ID
-  function removePersonById() {
-    const idValue = document.getElementById("idInput").value.trim();
-    if (!idValue) return alert("Preencha o ID para remover a pessoa.");
-
-    for (let family in families) {
-      for (let person in families[family]) {
-        if (families[family][person].id === idValue) {
-          delete families[family][person];
-          set(ref(db, "families/" + family), families[family]);
-          return;
-        }
-      }
-    }
-    alert("ID não encontrado.");
-  }
-
-  // Função para buscar pessoa por nome ou ID
-  function searchPerson() {
-    const query = searchInput.value.trim();
-    let found = false;
-
-    for (let family in families) {
-      for (let person in families[family]) {
-        const { id } = families[family][person];
-        if (person.toLowerCase().includes(query.toLowerCase()) || id.includes(query)) {
-          searchMessage.textContent = `Pessoa encontrada: ${person} (ID: ${id})`;
-          found = true;
-          break;
-        }
-      }
-      if (found) break;
-    }
-
-    if (!found) {
-      searchMessage.textContent = "Pessoa não encontrada com esse nome ou ID.";
-    }
+  // Função para gerar ID automaticamente
+  function generateIdForFamily(family) {
+    const existingIds = families[family] ? Object.values(families[family]).map(member => member.id) : [];
+    const maxId = existingIds.length > 0 ? Math.max(...existingIds) : 0;
+    return maxId + 1;
   }
 
   // Função para ouvir alterações no Firebase
@@ -301,9 +286,9 @@
     renderFamilies();
   });
 
-  window.addFamily = addFamily;
-  window.removePersonById = removePersonById;
-  window.searchPerson = searchPerson;
+  window.addPerson = addPerson;
+  window.removePerson = removePerson;
+  window.renderFamilies = renderFamilies;
 </script>
 
 </body>
