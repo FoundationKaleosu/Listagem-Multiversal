@@ -137,15 +137,6 @@
       flex-shrink: 0;
     }
 
-    .message {
-      color: #ffffff;
-      font-weight: bold;
-      background-color: #000000;
-      padding: 0.5rem;
-      text-align: center;
-      margin-top: 1rem;
-    }
-
     @media (max-width: 600px) {
       .form-container {
         flex-direction: column;
@@ -173,8 +164,6 @@
   <button onclick="searchPerson()">Procurar</button>
 </div>
 
-<div id="searchMessage" class="message"></div>
-
 <div class="container" id="familyDetails"></div>
 
 <!-- Firebase -->
@@ -197,21 +186,25 @@
 
   const familyDetails = document.getElementById("familyDetails");
   const searchInput = document.getElementById("searchInput");
-  const searchMessage = document.getElementById("searchMessage");
   let families = {};
+  let globalId = 0;  // ID global crescente
 
   // Função para renderizar famílias
   function renderFamilies() {
     const query = searchInput.value.toLowerCase();
     familyDetails.innerHTML = "";
 
+    // Ordena as famílias alfabeticamente
     const familiesSorted = Object.entries(families)
       .sort(([a], [b]) => a.localeCompare(b));
 
     familiesSorted.forEach(([family, members]) => {
-      const filtered = Object.entries(members).filter(([name, { id }]) => {
-        return name.toLowerCase().includes(query) || id.includes(query);
-      });
+      // Ordena os membros dentro da família alfabeticamente
+      const filtered = Object.entries(members)
+        .sort(([nameA], [nameB]) => nameA.localeCompare(nameB))
+        .filter(([name, { id }]) => {
+          return name.toLowerCase().includes(query) || id.toString().includes(query);
+        });
 
       if (filtered.length === 0) return;
 
@@ -246,9 +239,12 @@
 
     if (!families[family]) families[family] = {};
 
-    const idValue = generateIdForFamily(family);
-    families[family][person] = { id: idValue };
-  
+    // Atribui um ID único global para cada pessoa
+    families[family][person] = { id: 0 }; // ID temporário, será recalculado
+
+    // Recalcula os IDs de todas as famílias e membros
+    recalculateIds();
+
     set(ref(db, "families/" + family), families[family]);
     document.getElementById("personInput").value = "";
   }
@@ -258,36 +254,71 @@
     const person = document.getElementById("personInput").value.trim();
     if (!person) return alert("Preencha o nome da pessoa!");
 
-    const parts = person.split(" ");
-    const family = parts.length > 1 ? parts[parts.length - 1] : "Desconhecida";
-
-    if (families[family] && families[family][person]) {
-      delete families[family][person];
-      alert(`${person} removido da família ${family}.`);
-      set(ref(db, "families/" + family), families[family]);
-    } else {
-      alert(`${person} não encontrado na família ${family}.`);
+    let personFound = false;
+    for (let family in families) {
+      if (families[family][person]) {
+        delete families[family][person];
+        personFound = true;
+        break;
+      }
     }
 
+    if (!personFound) return alert("Pessoa não encontrada!");
+
+    // Recalcula os IDs após a remoção
+    recalculateIds();
+
+    set(ref(db, "families/"), families);  // Atualiza a lista global de famílias
     document.getElementById("personInput").value = "";
   }
 
-  // Função para gerar ID automaticamente
-  function generateIdForFamily(family) {
-    const existingIds = families[family] ? Object.values(families[family]).map(member => member.id) : [];
-    const maxId = existingIds.length > 0 ? Math.max(...existingIds) : 0;
-    return maxId + 1;
+  // Função para recalcular os IDs após adição ou remoção
+  function recalculateIds() {
+    let idCounter = 1;
+
+    // Ordena as famílias e seus membros e atribui IDs
+    Object.entries(families).forEach(([family, members]) => {
+      const sortedMembers = Object.keys(members).sort(); // Ordena os membros dentro da família
+      sortedMembers.forEach(member => {
+        families[family][member].id = idCounter++;  // Atribui um ID crescente
+      });
+    });
+
+    renderFamilies();  // Re-renderiza as famílias com os novos IDs
+  }
+
+  // Função para buscar pessoa por nome ou ID
+  function searchPerson() {
+    const query = searchInput.value.trim();
+    let found = false;
+
+    for (let family in families) {
+      for (let person in families[family]) {
+        const { id } = families[family][person];
+        if (person.toLowerCase().includes(query.toLowerCase()) || id.toString().includes(query)) {
+          found = true;
+          break;
+        }
+      }
+      if (found) break;
+    }
+
+    if (!found) {
+      searchMessage.textContent = "Pessoa não encontrada com esse nome ou ID.";
+    } else {
+      searchMessage.textContent = "";
+    }
   }
 
   // Função para ouvir alterações no Firebase
   onValue(ref(db, "families"), snapshot => {
     families = snapshot.val() || {};
-    renderFamilies();
+    recalculateIds();  // Recalcula IDs ao buscar dados
   });
 
   window.addPerson = addPerson;
   window.removePerson = removePerson;
-  window.renderFamilies = renderFamilies;
+  window.searchPerson = searchPerson;
 </script>
 
 </body>
