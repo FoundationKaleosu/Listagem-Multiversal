@@ -160,7 +160,7 @@
 </div>
 
 <div class="search-container">
-  <input type="text" id="searchInput" placeholder="Buscar por nome ou ID" oninput="renderFamilies()">
+  <input type="text" id="searchInput" placeholder="Buscar por nome ou ID">
   <button onclick="searchPerson()">Procurar</button>
 </div>
 
@@ -303,11 +303,7 @@
       if (found) break;
     }
 
-    if (!found) {
-      searchMessage.textContent = "Pessoa não encontrada com esse nome ou ID.";
-    } else {
-      searchMessage.textContent = "";
-    }
+    renderFamilies();  // Exibe as famílias filtradas após a busca
   }
 
   // Função para ouvir alterações no Firebase
